@@ -11,7 +11,8 @@
 #   "jaraco.classes",
 #   "uvicorn",
 #   "fastapi",
-#   "openai"
+#   "openai",
+#   ""
 # ]
 # ///
 from dotenv import load_dotenv
