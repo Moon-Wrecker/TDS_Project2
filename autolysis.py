@@ -9,7 +9,6 @@
 #   "numpy",
 #   "python-dotenv",
 #   "jaraco.classes"
-#   "uvicorn"
 # ]
 # ///
 
@@ -20,7 +19,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
-import uvicorn
 from fastapi import FastAPI
 import openai
 from dotenv import load_dotenv
