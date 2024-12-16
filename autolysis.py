@@ -1,3 +1,20 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "seaborn",
+#   "pandas",
+#   "matplotlib",
+#   "httpx",
+#   "chardet",
+#   "numpy",
+#   "python-dotenv",
+#   "jaraco.classes",
+#   "uvicorn",
+#   "fastapi",
+#   "openai"
+# ]
+# ///
+
 from dotenv import load_dotenv
 import os
 import pandas as pd
