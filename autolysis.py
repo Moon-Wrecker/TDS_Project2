@@ -9,7 +9,8 @@
 #   "numpy",
 #   "python-dotenv",
 #   "tenacity",
-#   "scikit-learn"
+#   "scikit-learn",
+#   "openai"
 # ]
 # ///
 
