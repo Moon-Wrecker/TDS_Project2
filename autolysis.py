@@ -8,7 +8,6 @@
 #   "chardet",
 #   "numpy",
 #   "python-dotenv",
-#   "tenacity",
 #   "scikit-learn",
 #   "openai"
 # ]
@@ -24,8 +23,8 @@ import os
 import json
 from dotenv import load_dotenv
 import openai
-from tenacity import retry, stop_after_attempt, wait_exponential
 import base64
+import time
 
 # Configure OpenAI settings
 load_dotenv()
@@ -34,6 +33,23 @@ openai.api_base = "https://aiproxy.sanand.workers.dev/openai/v1"
 
 if not openai.api_key:
     raise ValueError("AIPROXY_TOKEN is missing. Check your .env file.")
+
+def retry_with_backoff(func):
+    """Simple retry decorator with exponential backoff."""
+    def wrapper(*args, **kwargs):
+        max_attempts = 3
+        wait_time = 4  # Initial wait time in seconds
+        
+        for attempt in range(max_attempts):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if attempt == max_attempts - 1:  # Last attempt
+                    raise e
+                time.sleep(wait_time)
+                wait_time *= 2  # Exponential backoff
+        
+    return wrapper
 
 class DataAnalyzer:
     """Main class for analyzing datasets and generating insights."""
@@ -146,7 +162,7 @@ class DataAnalyzer:
         plt.savefig(os.path.join(self.dataset_name, 'missing_values.png'))
         plt.close()
         
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry_with_backoff
     def generate_initial_insights(self):
         """Generate initial insights about the dataset using GPT-4."""
         context = {
@@ -171,7 +187,7 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry_with_backoff
     def analyze_correlations(self):
         """Analyze correlations and generate insights."""
         if self.correlation_matrix is None:
@@ -197,7 +213,7 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry_with_backoff
     def analyze_visualizations(self):
         """Analyze the generated visualizations using GPT-4 Vision."""
         insights = []
