@@ -8,7 +8,10 @@
 #   "chardet",
 #   "numpy",
 #   "python-dotenv",
-#   "jaraco.classes"
+#   "jaraco.classes",
+#   "uvicorn",
+#   "fastapi",
+
 # ]
 # ///
 
