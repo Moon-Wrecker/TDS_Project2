@@ -1,7 +1,5 @@
 from dotenv import load_dotenv
 import sys
-import subprocess
-subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'seaborn'])
 import os
 import pandas as pd
 import seaborn as sns
