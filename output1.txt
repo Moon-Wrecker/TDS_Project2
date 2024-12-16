@@ -1,0 +1,25 @@
+                                                                                                                                                                Skipped 0 submissions
+                                                                                                                                                                ayushi-006-TDS_proj2 CLONE https://github.com/ayushi-006/TDS_proj2.git                                                                                                                                                                ayushi-006-TDS_proj2 LOG https://github.com/ayushi-006/TDS_proj2.git                                                                                                                                                                ayushi-006-TDS_proj2 CHECKOUT 5e206ed25ce59a9eda76b09bb42bcde23f679beb                                                                                                                                                                ayushi-006-TDS_proj2 CODE QUALITY                                                                                                                                                                ayushi-006-TDS_proj2 OpenAI error {'error': {'message': 'Rate limit reached for gpt-4o-mini in organization org-h7y07clQM3eUxeSPe16buyEC on requests per day 
+(RPD): Limit 10000, Used 10000, Requested 1. Please try again in 8.64s. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 
+'requests', 'param': None, 'code': 'rate_limit_exceeded'}, 'monthlyCost': 0.05894100000000001, 'cost': 0, 'monthlyRequests': 34}
+                                                                                                                                                                ayushi-006-TDS_proj2 uv run autolysis goodreads.csv                                                                                                                                                                ayushi-006-TDS_proj2 uv run autolysis happiness.csv                                                                                                                                                                ayushi-006-TDS_proj2 uv run autolysis media.csv                                                                                                                                                                ayushi-006-TDS_proj2 OUTPUT QUALITY goodreads.csv                                                                                                                                                                ayushi-006-TDS_proj2 17s SCORE 4.0 / 7.0
+    marks  ...                    id
+0     0.5  ...  ayushi-006-TDS_proj2
+1     0.5  ...  ayushi-006-TDS_proj2
+2     0.4  ...  ayushi-006-TDS_proj2
+3     0.1  ...  ayushi-006-TDS_proj2
+4     0.1  ...  ayushi-006-TDS_proj2
+5     0.1  ...  ayushi-006-TDS_proj2
+6     0.1  ...  ayushi-006-TDS_proj2
+7     0.1  ...  ayushi-006-TDS_proj2
+8     0.1  ...  ayushi-006-TDS_proj2
+9     0.5  ...  ayushi-006-TDS_proj2
+10    0.5  ...  ayushi-006-TDS_proj2
+11    0.5  ...  ayushi-006-TDS_proj2
+12    0.5  ...  ayushi-006-TDS_proj2
+13    0.0  ...  ayushi-006-TDS_proj2
+14    0.0  ...  ayushi-006-TDS_proj2
+15    0.0  ...  ayushi-006-TDS_proj2
+
+[16 rows x 5 columns]
+                                                                                                                                                                Results: /home/codespace/.local/share/tds-sep-24-project-2/results.csv
