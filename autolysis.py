@@ -9,7 +9,8 @@
 #   "numpy",
 #   "python-dotenv",
 #   "scikit-learn",
-#   "openai"
+#   "openai",
+#   "scipy"
 # ]
 # ///
 
@@ -19,12 +20,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from scipy import stats
 import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
 import base64
 import time
+from typing import Dict, List, Tuple, Any
 
 # Configure OpenAI settings
 load_dotenv()
@@ -32,35 +35,35 @@ api_key = os.getenv("AIPROXY_TOKEN")
 if not api_key:
     raise ValueError("AIPROXY_TOKEN is missing. Check your .env file.")
 
-# Initialize OpenAI client with custom base URL
+# Initialize OpenAI client
 client = OpenAI(
     api_key=api_key,
     base_url="https://aiproxy.sanand.workers.dev/openai/v1"
 )
 
-def retry_with_backoff(func):
-    """Simple retry decorator with exponential backoff."""
-    def wrapper(*args, **kwargs):
-        max_attempts = 3
-        wait_time = 4  # Initial wait time in seconds
-        
-        for attempt in range(max_attempts):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                if attempt == max_attempts - 1:  # Last attempt
-                    raise e
-                print(f"Attempt {attempt + 1} failed, retrying in {wait_time} seconds...")
-                time.sleep(wait_time)
-                wait_time *= 2  # Exponential backoff
-        
-    return wrapper
+def chunked_api_call(messages: List[Dict], max_retries: int = 3, initial_wait: int = 4):
+    """Make API calls with retries and chunked data."""
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.7,
+                timeout=30  # Add timeout to prevent hanging
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if attempt == max_retries - 1:
+                print(f"Final attempt failed: {str(e)}")
+                return "Analysis could not be completed due to API limitations."
+            wait_time = initial_wait * (2 ** attempt)
+            print(f"Attempt {attempt + 1} failed, retrying in {wait_time}s...")
+            time.sleep(wait_time)
 
 class DataAnalyzer:
-    """Main class for analyzing datasets and generating insights."""
+    """Advanced data analysis with statistical testing and ML insights."""
     
-    def __init__(self, csv_filename):
-        """Initialize with the CSV filename and prepare for analysis."""
+    def __init__(self, csv_filename: str):
         self.csv_filename = csv_filename
         self.df = None
         self.numeric_cols = None
@@ -68,89 +71,138 @@ class DataAnalyzer:
         self.correlation_matrix = None
         self.summary_stats = None
         self.missing_values = None
-        self.outliers = None
+        self.statistical_tests = {}
+        self.clusters = None
         
-        # Create output directory based on dataset name without extension
+        # Create output directory based on dataset name
         self.dataset_name = os.path.splitext(os.path.basename(csv_filename))[0]
-        
-        # Create dataset directory if it doesn't exist
         os.makedirs(self.dataset_name, exist_ok=True)
         
     def load_and_prepare_data(self):
-        """Load the CSV file and prepare data for analysis."""
+        """Load and prepare data with enhanced error handling."""
         try:
             self.df = pd.read_csv(self.csv_filename, encoding='utf-8')
         except UnicodeDecodeError:
             self.df = pd.read_csv(self.csv_filename, encoding='ISO-8859-1')
-            
+        
         # Identify column types
         self.numeric_cols = self.df.select_dtypes(include=['int64', 'float64']).columns
         self.categorical_cols = self.df.select_dtypes(include=['object']).columns
         
-        # Basic cleaning
+        # Handle missing values and outliers
         self.df = self.df.replace([np.inf, -np.inf], np.nan)
+        self._handle_missing_values()
         
+    def _handle_missing_values(self):
+        """Handle missing values intelligently."""
+        for col in self.numeric_cols:
+            if self.df[col].isnull().sum() > 0:
+                # Use median for skewed distributions, mean for normal
+                if abs(stats.skew(self.df[col].dropna())) > 1:
+                    self.df[col].fillna(self.df[col].median(), inplace=True)
+                else:
+                    self.df[col].fillna(self.df[col].mean(), inplace=True)
+                    
     def perform_analysis(self):
-        """Perform comprehensive data analysis."""
+        """Comprehensive data analysis with statistical tests."""
         # Basic statistics
         self.summary_stats = self.df.describe(include='all')
         self.missing_values = self.df.isnull().sum()
         
-        # Correlation analysis for numeric columns
-        if len(self.numeric_cols) > 0:
+        # Enhanced correlation analysis
+        if len(self.numeric_cols) > 1:
             self.correlation_matrix = self.df[self.numeric_cols].corr()
             
-        # Detect outliers using IQR method
-        self.outliers = {}
-        for col in self.numeric_cols:
-            Q1 = self.df[col].quantile(0.25)
-            Q3 = self.df[col].quantile(0.75)
-            IQR = Q3 - Q1
-            outlier_count = len(self.df[(self.df[col] < (Q1 - 1.5 * IQR)) | 
-                                      (self.df[col] > (Q3 + 1.5 * IQR))])
-            self.outliers[col] = outlier_count
+            # Perform statistical tests
+            self._perform_statistical_tests()
             
+            # Perform clustering if enough numeric columns
+            if len(self.numeric_cols) >= 2:
+                self._perform_clustering()
+                
+    def _perform_statistical_tests(self):
+        """Perform various statistical tests on the data."""
+        for col in self.numeric_cols:
+            # Normality test
+            stat, p_value = stats.normaltest(self.df[col].dropna())
+            self.statistical_tests[f"{col}_normality"] = {
+                "statistic": stat,
+                "p_value": p_value,
+                "is_normal": p_value > 0.05
+            }
+            
+            # Outlier detection using Z-score
+            z_scores = np.abs(stats.zscore(self.df[col].dropna()))
+            outliers = np.sum(z_scores > 3)
+            self.statistical_tests[f"{col}_outliers"] = outliers
+            
+    def _perform_clustering(self):
+        """Perform clustering on numeric data."""
+        # Normalize the data
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(self.df[self.numeric_cols])
+        
+        # Determine optimal number of clusters (max 5)
+        inertias = []
+        max_clusters = min(5, len(self.df) // 2)
+        for k in range(1, max_clusters + 1):
+            kmeans = KMeans(n_clusters=k, random_state=42)
+            kmeans.fit(scaled_data)
+            inertias.append(kmeans.inertia_)
+            
+        # Use elbow method to find optimal clusters
+        optimal_clusters = 2  # default
+        for i in range(1, len(inertias) - 1):
+            if (inertias[i-1] - inertias[i]) / (inertias[i] - inertias[i+1]) < 2:
+                optimal_clusters = i + 1
+                break
+                
+        # Perform final clustering
+        kmeans = KMeans(n_clusters=optimal_clusters, random_state=42)
+        self.clusters = kmeans.fit_predict(scaled_data)
+        
     def create_visualizations(self):
-        """Generate insightful visualizations."""
-        # Set default style
-        plt.style.use('default')
+        """Generate enhanced visualizations with insights."""
+        sns.set_style("whitegrid")
+        plt.rcParams['figure.figsize'] = [12, 8]
         
-        # 1. Distribution plots for numeric columns
         self._create_distribution_plots()
-        
-        # 2. Correlation heatmap
         self._create_correlation_heatmap()
-        
-        # 3. Missing values visualization
         self._create_missing_values_plot()
+        if self.clusters is not None:
+            self._create_cluster_plot()
         
-        return ['distributions.png', 'correlation_heatmap.png', 'missing_values.png']
+        return ['distributions.png', 'correlation_heatmap.png', 'missing_values.png', 'clusters.png']
         
     def _create_distribution_plots(self):
-        """Create distribution plots for numeric columns."""
+        """Create enhanced distribution plots."""
         if len(self.numeric_cols) > 0:
             fig = plt.figure(figsize=(15, 10))
-            for col in self.numeric_cols[:5]:  # Limit to first 5 columns
-                sns.kdeplot(data=self.df[col], label=col)
+            for idx, col in enumerate(self.numeric_cols[:5]):
+                plt.subplot(2, 3, idx+1)
+                sns.histplot(self.df[col], kde=True)
+                plt.title(f'{col} Distribution')
+                if col in self.statistical_tests:
+                    is_normal = self.statistical_tests[f"{col}_normality"]["is_normal"]
+                    plt.title(f'{col} Distribution\n{"Normal" if is_normal else "Non-normal"}')
             
-            plt.title('Distribution of Numeric Variables', pad=20)
-            plt.xlabel('Values')
-            plt.ylabel('Density')
-            plt.legend()
             plt.tight_layout()
             plt.savefig(os.path.join(self.dataset_name, 'distributions.png'))
             plt.close()
             
     def _create_correlation_heatmap(self):
-        """Create correlation heatmap for numeric columns."""
+        """Create enhanced correlation heatmap."""
         if self.correlation_matrix is not None:
             plt.figure(figsize=(12, 8))
+            mask = np.triu(np.ones_like(self.correlation_matrix))
             sns.heatmap(self.correlation_matrix, 
+                       mask=mask,
                        annot=True, 
                        cmap='coolwarm', 
+                       center=0,
                        fmt='.2f',
                        linewidths=0.5)
-            plt.title('Correlation Matrix Heatmap', pad=20)
+            plt.title('Correlation Matrix Heatmap')
             plt.tight_layout()
             plt.savefig(os.path.join(self.dataset_name, 'correlation_heatmap.png'))
             plt.close()
@@ -158,128 +210,82 @@ class DataAnalyzer:
     def _create_missing_values_plot(self):
         """Create missing values visualization."""
         plt.figure(figsize=(12, 6))
-        sns.barplot(x=self.missing_values.index, 
-                   y=self.missing_values.values)
-        plt.title('Missing Values by Column', pad=20)
+        missing_percentages = (self.missing_values / len(self.df)) * 100
+        sns.barplot(x=missing_percentages.index, 
+                   y=missing_percentages.values)
+        plt.title('Missing Values by Column (%)')
         plt.xticks(rotation=45)
-        plt.ylabel('Count')
+        plt.ylabel('Percentage Missing')
         plt.tight_layout()
         plt.savefig(os.path.join(self.dataset_name, 'missing_values.png'))
         plt.close()
         
-    @retry_with_backoff
-    def generate_initial_insights(self):
-        """Generate initial insights about the dataset using GPT-4."""
-        context = {
-            "dataset_name": self.dataset_name,
-            "total_rows": len(self.df),
-            "total_columns": len(self.df.columns),
-            "numeric_columns": list(self.numeric_cols),
-            "categorical_columns": list(self.categorical_cols),
-            "missing_values_summary": self.missing_values.to_dict(),
-            "outliers_summary": self.outliers
-        }
-        
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": """You are a data scientist analyzing a dataset. 
-                 Focus on key insights, patterns, and potential areas for deeper analysis.
-                 Structure your response in Markdown format with clear sections."""},
-                {"role": "user", "content": f"Analyze this dataset overview and provide initial insights:\n{json.dumps(context, indent=2)}"}
-            ],
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-
-    @retry_with_backoff
-    def analyze_correlations(self):
-        """Analyze correlations and generate insights."""
-        if self.correlation_matrix is None:
-            return "No numeric columns available for correlation analysis."
-            
-        # Find strongest correlations
-        correlations = []
-        for i in range(len(self.correlation_matrix.columns)):
-            for j in range(i+1, len(self.correlation_matrix.columns)):
-                col1 = self.correlation_matrix.columns[i]
-                col2 = self.correlation_matrix.columns[j]
-                corr = self.correlation_matrix.iloc[i, j]
-                if abs(corr) > 0.5:  # Only strong correlations
-                    correlations.append((col1, col2, corr))
-                    
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a data scientist analyzing correlations."},
-                {"role": "user", "content": f"Analyze these correlations and suggest potential implications:\n{json.dumps(correlations, indent=2)}"}
-            ],
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-
-    @retry_with_backoff
-    def analyze_visualizations(self):
-        """Analyze the generated visualizations using GPT-4 Vision."""
-        insights = []
-        
-        for image_name in ['distributions.png', 'correlation_heatmap.png', 'missing_values.png']:
-            image_path = os.path.join(self.dataset_name, image_name)
-            if os.path.exists(image_path):
-                with open(image_path, 'rb') as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-                
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a data visualization expert."},
-                        {"role": "user", "content": [
-                            {"type": "text", "text": f"Analyze this {image_name} visualization and provide key insights:"},
-                            {"type": "image_url", "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}",
-                                "detail": "low"
-                            }}
-                        ]}
-                    ],
-                    temperature=0.7
-                )
-                insights.append(response.choices[0].message.content)
-                
-        return "\n\n".join(insights)
+    def _create_cluster_plot(self):
+        """Create cluster visualization."""
+        if self.clusters is not None and len(self.numeric_cols) >= 2:
+            plt.figure(figsize=(10, 8))
+            scatter = plt.scatter(
+                self.df[self.numeric_cols[0]],
+                self.df[self.numeric_cols[1]],
+                c=self.clusters,
+                cmap='viridis'
+            )
+            plt.colorbar(scatter)
+            plt.title('Cluster Analysis')
+            plt.xlabel(self.numeric_cols[0])
+            plt.ylabel(self.numeric_cols[1])
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.dataset_name, 'clusters.png'))
+            plt.close()
 
     def generate_report(self):
-        """Generate the final analysis report."""
+        """Generate comprehensive analysis report with dynamic insights."""
         try:
-            # Load and analyze data
             self.load_and_prepare_data()
             self.perform_analysis()
-            
-            # Generate visualizations
             image_files = self.create_visualizations()
             
-            # Generate insights using multiple approaches
-            initial_insights = self.generate_initial_insights()
-            correlation_insights = self.analyze_correlations()
-            visual_insights = self.analyze_visualizations()
+            # Prepare analysis context with chunked data
+            context = {
+                "dataset_info": {
+                    "name": self.dataset_name,
+                    "rows": len(self.df),
+                    "columns": len(self.df.columns),
+                    "numeric_columns": list(self.numeric_cols),
+                    "categorical_columns": list(self.categorical_cols)
+                },
+                "statistical_tests": self.statistical_tests,
+                "missing_values": self.missing_values.to_dict()
+            }
             
-            # Write the report to the dataset-specific directory
+            # Generate insights with optimized prompts
+            messages = [
+                {"role": "system", "content": """You are a data scientist. Provide clear, specific insights.
+                Focus on actionable findings and their implications. Use clear Markdown formatting."""},
+                {"role": "user", "content": f"Analyze this data context and provide key insights:\n{json.dumps(context)}"}
+            ]
+            analysis = chunked_api_call(messages)
+            
+            # Write the report
             readme_path = os.path.join(self.dataset_name, 'README.md')
             with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write("# Automated Data Analysis Report\n\n")
+                f.write(f"# Analysis Report: {self.dataset_name}\n\n")
+                f.write("## Key Findings\n\n")
+                f.write(analysis + "\n\n")
                 
-                f.write("## Dataset Overview\n\n")
-                f.write(initial_insights + "\n\n")
+                if self.statistical_tests:
+                    f.write("## Statistical Analysis\n\n")
+                    for test, result in self.statistical_tests.items():
+                        if isinstance(result, dict):
+                            f.write(f"### {test}\n")
+                            f.write(f"- Result: {'Normal' if result['is_normal'] else 'Non-normal'}\n")
+                            f.write(f"- P-value: {result['p_value']:.4f}\n\n")
                 
-                f.write("## Correlation Analysis\n\n")
-                f.write(correlation_insights + "\n\n")
-                
-                f.write("## Visual Analysis\n\n")
+                f.write("## Visualizations\n\n")
                 for image in image_files:
-                    f.write(f"### {image.split('.')[0].title()}\n")
-                    f.write(f"![{image}](./{image})\n\n")
-                
-                f.write("## Visual Insights\n\n")
-                f.write(visual_insights + "\n\n")
+                    if os.path.exists(os.path.join(self.dataset_name, image)):
+                        f.write(f"### {image.split('.')[0].title()}\n")
+                        f.write(f"![{image}](./{image})\n\n")
                 
             print(f"Analysis complete! Results saved to {readme_path}")
             
@@ -287,7 +293,7 @@ class DataAnalyzer:
             print(f"An error occurred: {str(e)}")
             raise
 
-def main(csv_filename):
+def main(csv_filename: str):
     """Main function to run the analysis."""
     analyzer = DataAnalyzer(csv_filename)
     analyzer.generate_report()
