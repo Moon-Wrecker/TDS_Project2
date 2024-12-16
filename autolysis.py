@@ -9,6 +9,7 @@
 #   "numpy",
 #   "python-dotenv",
 #   "jaraco.classes"
+#   "uvicorn"
 # ]
 # ///
 
