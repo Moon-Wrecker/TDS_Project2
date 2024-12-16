@@ -49,10 +49,11 @@ class DataAnalyzer:
         self.missing_values = None
         self.outliers = None
         
-        # Create output directory based on dataset name
+        # Create output directory based on dataset name without extension
         self.dataset_name = os.path.splitext(os.path.basename(csv_filename))[0]
-        self.output_dir = self.dataset_name
-        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Create dataset directory if it doesn't exist
+        os.makedirs(self.dataset_name, exist_ok=True)
         
     def load_and_prepare_data(self):
         """Load the CSV file and prepare data for analysis."""
@@ -116,7 +117,7 @@ class DataAnalyzer:
             plt.ylabel('Density')
             plt.legend()
             plt.tight_layout()
-            plt.savefig(os.path.join(self.output_dir, 'distributions.png'))
+            plt.savefig(os.path.join(self.dataset_name, 'distributions.png'))
             plt.close()
             
     def _create_correlation_heatmap(self):
@@ -130,7 +131,7 @@ class DataAnalyzer:
                        linewidths=0.5)
             plt.title('Correlation Matrix Heatmap', pad=20)
             plt.tight_layout()
-            plt.savefig(os.path.join(self.output_dir, 'correlation_heatmap.png'))
+            plt.savefig(os.path.join(self.dataset_name, 'correlation_heatmap.png'))
             plt.close()
             
     def _create_missing_values_plot(self):
@@ -142,7 +143,7 @@ class DataAnalyzer:
         plt.xticks(rotation=45)
         plt.ylabel('Count')
         plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, 'missing_values.png'))
+        plt.savefig(os.path.join(self.dataset_name, 'missing_values.png'))
         plt.close()
         
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -170,7 +171,7 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_attempt_number=3)
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def analyze_correlations(self):
         """Analyze correlations and generate insights."""
         if self.correlation_matrix is None:
@@ -196,13 +197,13 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_attempt_number=3)
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def analyze_visualizations(self):
         """Analyze the generated visualizations using GPT-4 Vision."""
         insights = []
         
         for image_name in ['distributions.png', 'correlation_heatmap.png', 'missing_values.png']:
-            image_path = os.path.join(self.output_dir, image_name)
+            image_path = os.path.join(self.dataset_name, image_name)
             if os.path.exists(image_path):
                 with open(image_path, 'rb') as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
@@ -241,7 +242,7 @@ class DataAnalyzer:
             visual_insights = self.analyze_visualizations()
             
             # Write the report to the dataset-specific directory
-            readme_path = os.path.join(self.output_dir, 'README.md')
+            readme_path = os.path.join(self.dataset_name, 'README.md')
             with open(readme_path, 'w', encoding='utf-8') as f:
                 f.write("# Automated Data Analysis Report\n\n")
                 
