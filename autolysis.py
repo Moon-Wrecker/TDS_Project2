@@ -149,12 +149,9 @@ def main(csv_filename):
             f.write("# Automated Data Analysis Report\n\n")
             f.write("## Summary of Analysis\n\n")
             f.write(f"### Data Columns: {', '.join(df.columns)}\n\n")
-            f.write(f"### Summary Statistics:\n```
-{summary_stats}\n``\n\n")
-            f.write(f"### Missing Values:\n```
-{missing_values}\n``\n\n")
-            f.write(f"### Correlation Matrix:\n```
-{correlation_matrix}\n``\n\n")
+            f.write(f"### Summary Statistics:\n```{summary_stats}\n``\n\n")
+            f.write(f"### Missing Values:\n```{missing_values}\n``\n\n")
+            f.write(f"### Correlation Matrix:\n```{correlation_matrix}\n``\n\n")
             f.write("## Data Insights\n\n")
             f.write(f"{narrative}\n\n")
             f.write("## Visualizations\n\n")
