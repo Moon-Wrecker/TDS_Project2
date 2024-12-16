@@ -22,17 +22,21 @@ from sklearn.cluster import KMeans
 import os
 import json
 from dotenv import load_dotenv
-import openai
+from openai import OpenAI
 import base64
 import time
 
 # Configure OpenAI settings
 load_dotenv()
-openai.api_key = os.getenv("AIPROXY_TOKEN")
-openai.api_base = "https://aiproxy.sanand.workers.dev/openai/v1"
-
-if not openai.api_key:
+api_key = os.getenv("AIPROXY_TOKEN")
+if not api_key:
     raise ValueError("AIPROXY_TOKEN is missing. Check your .env file.")
+
+# Initialize OpenAI client with custom base URL
+client = OpenAI(
+    api_key=api_key,
+    base_url="https://aiproxy.sanand.workers.dev/openai/v1"
+)
 
 def retry_with_backoff(func):
     """Simple retry decorator with exponential backoff."""
@@ -46,6 +50,7 @@ def retry_with_backoff(func):
             except Exception as e:
                 if attempt == max_attempts - 1:  # Last attempt
                     raise e
+                print(f"Attempt {attempt + 1} failed, retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time *= 2  # Exponential backoff
         
@@ -175,7 +180,7 @@ class DataAnalyzer:
             "outliers_summary": self.outliers
         }
         
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": """You are a data scientist analyzing a dataset. 
@@ -203,7 +208,7 @@ class DataAnalyzer:
                 if abs(corr) > 0.5:  # Only strong correlations
                     correlations.append((col1, col2, corr))
                     
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a data scientist analyzing correlations."},
@@ -224,7 +229,7 @@ class DataAnalyzer:
                 with open(image_path, 'rb') as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
                 
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "You are a data visualization expert."},
