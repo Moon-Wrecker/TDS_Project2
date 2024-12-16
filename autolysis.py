@@ -7,7 +7,8 @@
 #   "httpx",
 #   "chardet",
 #   "numpy",
-#   "dotenv"
+#   "python-dotenv",
+#   "jaraco.classes"
 # ]
 # ///
 
