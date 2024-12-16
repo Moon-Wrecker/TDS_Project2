@@ -59,12 +59,12 @@ def analyze_data(csv_filename):
 
 # Function to generate visualizations
 def create_visualizations(df, correlation_matrix):
-    # 1. Histogram of each column
+     # 1. Histogram of each column
     df.hist(figsize=(12, 8))
     plt.tight_layout()
     plt.savefig('histograms.png')
     plt.close()  # Close the figure to free memory
-    
+
     # 2. Correlation heatmap
     plt.figure(figsize=(10, 8))
     sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
