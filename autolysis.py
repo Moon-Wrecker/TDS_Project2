@@ -11,6 +11,7 @@
 #   "jaraco.classes",
 #   "uvicorn",
 #   "fastapi",
+#   "openai"
 # ]
 # ///
 
