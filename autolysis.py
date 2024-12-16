@@ -15,8 +15,7 @@
 # ]
 # ///
 
-from dotenv import load_dotenv
-import os
+# Import required libraries
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -27,8 +26,8 @@ import openai
 from dotenv import load_dotenv
 
 # Load AI Proxy token from environment variable
-load_dotenv()
-openai.api_key = os.getenv("AIPROXY_TOKEN")
+load_dotenv()  # Load environment variables from .env file
+openai.api_key = os.getenv("AIPROXY_TOKEN")  # Set OpenAI API key from environment variable
 
 # Set the API base URL for the proxy
 openai.api_base = "https://aiproxy.sanand.workers.dev/openai/v1"
@@ -40,16 +39,19 @@ if not openai.api_key:
 app = FastAPI()
 
 def analyze_data(csv_filename):
-    # Read dataset with a specified encoding
+    """
+    Analyze the dataset and return key statistics, missing values, and correlation matrix.
+    """
     try:
+        # Read dataset with a specified encoding
         df = pd.read_csv(csv_filename, encoding='utf-8')  # Default attempt with utf-8
     except UnicodeDecodeError:
         print("Default UTF-8 encoding failed, trying 'ISO-8859-1'.")
         df = pd.read_csv(csv_filename, encoding='ISO-8859-1')  # Fallback to ISO-8859-1
 
     # Generate basic statistics
-    summary_stats = df.describe(include='all')
-    missing_values = df.isnull().sum()
+    summary_stats = df.describe(include='all')  # Summary statistics for all columns
+    missing_values = df.isnull().sum()  # Count of missing values for each column
 
     # Correlation matrix
     correlation_matrix = df.corr(numeric_only=True)
@@ -57,9 +59,12 @@ def analyze_data(csv_filename):
     return df, summary_stats, missing_values, correlation_matrix
 
 
-# Function to generate visualizations
 def create_visualizations(df, correlation_matrix):
-     # 1. Histogram of each column
+    """
+    Creates histograms, correlation heatmap, and box plots for the dataset.
+    Saves the visualizations as PNG files.
+    """
+    # 1. Histogram of each column
     df.hist(figsize=(12, 8))
     plt.tight_layout()
     plt.savefig('histograms.png')
@@ -84,7 +89,11 @@ def create_visualizations(df, correlation_matrix):
 
     return ['histograms.png', 'correlation_heatmap.png', 'boxplots.png']
 
+
 def generate_narrative(df, summary_stats, missing_values, correlation_matrix):
+    """
+    Sends the data analysis results to an AI model for generating insights in natural language.
+    """
     # Prepare context for the LLM
     data_context = {
         "columns": list(df.columns),
@@ -92,10 +101,6 @@ def generate_narrative(df, summary_stats, missing_values, correlation_matrix):
         "missing_values": missing_values.to_dict(),
         "correlation_matrix": correlation_matrix.to_dict()
     }
-    
-    # Debugging: Print the context being sent
-    print("Data context being sent to OpenAI API:")
-    #print(data_context)
 
     try:
         # Call the LLM for a narrative
@@ -124,32 +129,31 @@ def generate_narrative(df, summary_stats, missing_values, correlation_matrix):
 
 
 def main(csv_filename):
+    """
+    Main function to read the CSV file, analyze the data, generate visualizations,
+    create a narrative, and save the results in a Markdown file.
+    """
     try:
         # Verify file exists
         if not os.path.exists(csv_filename):
             print(f"Error: File '{csv_filename}' not found!")
             return
 
-        print(f"Processing file: {csv_filename}")  # Debug print
-        
+        print(f"Processing file: {csv_filename}")
+
         # Analyze data
         df, summary_stats, missing_values, correlation_matrix = analyze_data(csv_filename)
-        print("Data analysis complete")  # Debug print
+        print("Data analysis complete")
 
         # Create visualizations
         images = create_visualizations(df, correlation_matrix)
-        print("Visualizations created")  # Debug print
+        print("Visualizations created")
 
         # Generate narrative
-        try:
-            narrative = generate_narrative(df, summary_stats, missing_values, correlation_matrix)
-            print("Narrative generated")  # Debug print
-        except Exception as e:
-            print(f"Error generating narrative: {str(e)}")
-            narrative = "Error generating narrative"
+        narrative = generate_narrative(df, summary_stats, missing_values, correlation_matrix)
+        print("Narrative generated")
 
         # Write results to Markdown file
-        print("Attempting to create README.md...")  # Debug print
         with open('README.md', 'w', encoding='utf-8') as f:
             f.write("# Automated Data Analysis Report\n\n")
             f.write("## Summary of Analysis\n\n")
@@ -166,18 +170,19 @@ def main(csv_filename):
             f.write("![Correlation Heatmap](./correlation_heatmap.png)\n\n")
             f.write("### Box Plots\n")
             f.write("![Box Plots](./boxplots.png)\n\n")
-        
+
         print("README.md created successfully!")
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
-# Run the script with a given dataset
 
+
+# Run the script with a given dataset
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Usage: uv run autolysis.py happiness.csv")
+        # Display usage instructions if no filename is provided
+        print("Usage: python autolysis.py <csv_filename>")
     else:
-        csv_filename = sys.argv[1]
+        csv_filename = sys.argv[1]  # Get the filename from command-line arguments
         main(csv_filename)
-
