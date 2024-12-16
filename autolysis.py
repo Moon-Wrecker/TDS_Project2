@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
 import os
 import json
 from dotenv import load_dotenv
@@ -49,6 +48,11 @@ class DataAnalyzer:
         self.summary_stats = None
         self.missing_values = None
         self.outliers = None
+        
+        # Create output directory based on dataset name
+        self.dataset_name = os.path.splitext(os.path.basename(csv_filename))[0]
+        self.output_dir = self.dataset_name
+        os.makedirs(self.output_dir, exist_ok=True)
         
     def load_and_prepare_data(self):
         """Load the CSV file and prepare data for analysis."""
@@ -86,8 +90,8 @@ class DataAnalyzer:
             
     def create_visualizations(self):
         """Generate insightful visualizations."""
-        # Set style for all plots
-        plt.style.use('seaborn')
+        # Set default style
+        plt.style.use('default')
         
         # 1. Distribution plots for numeric columns
         self._create_distribution_plots()
@@ -103,7 +107,7 @@ class DataAnalyzer:
     def _create_distribution_plots(self):
         """Create distribution plots for numeric columns."""
         if len(self.numeric_cols) > 0:
-            fig, axes = plt.subplots(figsize=(15, 10))
+            fig = plt.figure(figsize=(15, 10))
             for col in self.numeric_cols[:5]:  # Limit to first 5 columns
                 sns.kdeplot(data=self.df[col], label=col)
             
@@ -112,7 +116,7 @@ class DataAnalyzer:
             plt.ylabel('Density')
             plt.legend()
             plt.tight_layout()
-            plt.savefig('distributions.png')
+            plt.savefig(os.path.join(self.output_dir, 'distributions.png'))
             plt.close()
             
     def _create_correlation_heatmap(self):
@@ -126,7 +130,7 @@ class DataAnalyzer:
                        linewidths=0.5)
             plt.title('Correlation Matrix Heatmap', pad=20)
             plt.tight_layout()
-            plt.savefig('correlation_heatmap.png')
+            plt.savefig(os.path.join(self.output_dir, 'correlation_heatmap.png'))
             plt.close()
             
     def _create_missing_values_plot(self):
@@ -138,14 +142,14 @@ class DataAnalyzer:
         plt.xticks(rotation=45)
         plt.ylabel('Count')
         plt.tight_layout()
-        plt.savefig('missing_values.png')
+        plt.savefig(os.path.join(self.output_dir, 'missing_values.png'))
         plt.close()
         
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def generate_initial_insights(self):
         """Generate initial insights about the dataset using GPT-4."""
         context = {
-            "dataset_name": os.path.basename(self.csv_filename),
+            "dataset_name": self.dataset_name,
             "total_rows": len(self.df),
             "total_columns": len(self.df.columns),
             "numeric_columns": list(self.numeric_cols),
@@ -166,7 +170,7 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(stop=stop_attempt_number=3)
     def analyze_correlations(self):
         """Analyze correlations and generate insights."""
         if self.correlation_matrix is None:
@@ -192,12 +196,13 @@ class DataAnalyzer:
         )
         return response.choices[0].message.content
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(stop=stop_attempt_number=3)
     def analyze_visualizations(self):
         """Analyze the generated visualizations using GPT-4 Vision."""
         insights = []
         
-        for image_path in ['distributions.png', 'correlation_heatmap.png', 'missing_values.png']:
+        for image_name in ['distributions.png', 'correlation_heatmap.png', 'missing_values.png']:
+            image_path = os.path.join(self.output_dir, image_name)
             if os.path.exists(image_path):
                 with open(image_path, 'rb') as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
@@ -207,7 +212,7 @@ class DataAnalyzer:
                     messages=[
                         {"role": "system", "content": "You are a data visualization expert."},
                         {"role": "user", "content": [
-                            {"type": "text", "text": f"Analyze this {image_path} visualization and provide key insights:"},
+                            {"type": "text", "text": f"Analyze this {image_name} visualization and provide key insights:"},
                             {"type": "image_url", "image_url": {
                                 "url": f"data:image/png;base64,{base64_image}",
                                 "detail": "low"
@@ -235,8 +240,9 @@ class DataAnalyzer:
             correlation_insights = self.analyze_correlations()
             visual_insights = self.analyze_visualizations()
             
-            # Compile the report
-            with open('README.md', 'w', encoding='utf-8') as f:
+            # Write the report to the dataset-specific directory
+            readme_path = os.path.join(self.output_dir, 'README.md')
+            with open(readme_path, 'w', encoding='utf-8') as f:
                 f.write("# Automated Data Analysis Report\n\n")
                 
                 f.write("## Dataset Overview\n\n")
@@ -253,7 +259,7 @@ class DataAnalyzer:
                 f.write("## Visual Insights\n\n")
                 f.write(visual_insights + "\n\n")
                 
-            print("Analysis complete! Results saved to README.md")
+            print(f"Analysis complete! Results saved to {readme_path}")
             
         except Exception as e:
             print(f"An error occurred: {str(e)}")
