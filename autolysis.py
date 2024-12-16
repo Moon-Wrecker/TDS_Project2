@@ -1,21 +1,5 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#   "seaborn",
-#   "pandas",
-#   "matplotlib",
-#   "httpx",
-#   "chardet",
-#   "numpy",
-#   "python-dotenv",
-#   "jaraco.classes",
-#   "uvicorn",
-#   "fastapi",
-#   "openai"
-# ]
-# ///
-
-# Import required libraries
+from dotenv import load_dotenv
+import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -26,8 +10,8 @@ import openai
 from dotenv import load_dotenv
 
 # Load AI Proxy token from environment variable
-load_dotenv() # Load environment variables from .env file
-openai.api_key = os.getenv("AIPROXY_TOKEN") # Set OpenAI API key from environment variable
+load_dotenv()
+openai.api_key = os.getenv("AIPROXY_TOKEN")
 
 # Set the API base URL for the proxy
 openai.api_base = "https://aiproxy.sanand.workers.dev/openai/v1"
@@ -47,8 +31,8 @@ def analyze_data(csv_filename):
         df = pd.read_csv(csv_filename, encoding='ISO-8859-1')  # Fallback to ISO-8859-1
 
     # Generate basic statistics
-    summary_stats = df.describe(include='all')# Summary statistics for all columns
-    missing_values = df.isnull().sum() # Count of missing values for each column
+    summary_stats = df.describe(include='all')
+    missing_values = df.isnull().sum()
 
     # Correlation matrix
     correlation_matrix = df.corr(numeric_only=True)
@@ -58,38 +42,8 @@ def analyze_data(csv_filename):
 
 # Function to generate visualizations
 def create_visualizations(df, correlation_matrix):
-    """
-    Creates histograms, correlation heatmap, and box plots for the dataset.
-    Saves the visualizations as PNG files.
-    # """
-    # # 1. Histogram of each column
-    # df.hist(figsize=(12, 8))
-    # plt.tight_layout()
-    # plt.savefig('histograms.png')
-    # plt.close()  # Close the figure to free memory
-    
-    # # 2. Correlation heatmap
-    # plt.figure(figsize=(10, 8))
-    # sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
-    # plt.tight_layout()
-    # plt.savefig('correlation_heatmap.png')
-    # plt.close()  # Close the figure to free memory
-
-    # # 3. Box plots for numerical columns
-    # numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns
-    # plt.figure(figsize=(12, 6))
-    # df[numerical_cols].boxplot()
-    # plt.xticks(rotation=45)
-    # plt.title('Distribution of Numerical Variables')
-    # plt.tight_layout()
-    # plt.savefig('boxplots.png')
-    # plt.close()  # Close the figure to free memory
-
     # 1. Histogram of each column
     df.hist(figsize=(12, 8))
-    plt.suptitle('Histograms of Each Column', fontsize=16)  # Title for the entire plot
-    plt.xlabel('Value', fontsize=12)  # Label for the x-axis
-    plt.ylabel('Frequency', fontsize=12)  # Label for the y-axis
     plt.tight_layout()
     plt.savefig('histograms.png')
     plt.close()  # Close the figure to free memory
@@ -97,35 +51,23 @@ def create_visualizations(df, correlation_matrix):
     # 2. Correlation heatmap
     plt.figure(figsize=(10, 8))
     sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
-    plt.title('Correlation Heatmap', fontsize=16)  # Title for the heatmap
-    plt.xlabel('Columns', fontsize=12)  # Label for the x-axis
-    plt.ylabel('Columns', fontsize=12)  # Label for the y-axis
     plt.tight_layout()
     plt.savefig('correlation_heatmap.png')
     plt.close()  # Close the figure to free memory
-    
+
     # 3. Box plots for numerical columns
     numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns
     plt.figure(figsize=(12, 6))
     df[numerical_cols].boxplot()
     plt.xticks(rotation=45)
-    plt.title('Distribution of Numerical Variables', fontsize=16)  # Title for the boxplots
-    plt.xlabel('Variables', fontsize=12)  # Label for the x-axis
-    plt.ylabel('Values', fontsize=12)  # Label for the y-axis
+    plt.title('Distribution of Numerical Variables')
     plt.tight_layout()
     plt.savefig('boxplots.png')
     plt.close()  # Close the figure to free memory
 
-
     return ['histograms.png', 'correlation_heatmap.png', 'boxplots.png']
 
-
-# Function to generate a narrative using an AI model
 def generate_narrative(df, summary_stats, missing_values, correlation_matrix):
- """
-    Sends the data analysis results to an AI model for generating insights in natural language.
-    """
-    
     # Prepare context for the LLM
     data_context = {
         "columns": list(df.columns),
@@ -165,10 +107,6 @@ def generate_narrative(df, summary_stats, missing_values, correlation_matrix):
 
 
 def main(csv_filename):
-      """
-    Main function to read the CSV file, analyze the data, generate visualizations,
-    create a narrative, and save the results in a Markdown file.
-    """
     try:
         # Verify file exists
         if not os.path.exists(csv_filename):
@@ -221,8 +159,8 @@ def main(csv_filename):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        # Display usage instructions if no filename is provided
         print("Usage: uv run autolysis.py happiness.csv")
     else:
-        csv_filename = sys.argv[1] # Get the filename from command-line arguments
+        csv_filename = sys.argv[1]
         main(csv_filename)
+
